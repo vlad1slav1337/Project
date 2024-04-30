@@ -3,17 +3,12 @@ from telegram.ext import Application, CommandHandler, ConversationHandler, Messa
 import sqlite3
 import datetime as dt
 from threading import Timer
-import schedule
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
 )
 
 logger = logging.getLogger(__name__)
-
-def remind():
-    print('HELLO, VLAD :)')
-    return schedule.CancelJob
 
 def remove_job_if_exists(name, context):
     current_jobs = context.job_queue.get_jobs_by_name(name)
@@ -166,7 +161,6 @@ def main():
     application.add_handler(CommandHandler("delete_all", delete_all))
 
     application.run_polling()
-    schedule.run_pending()
 
 
 if __name__ == '__main__':
