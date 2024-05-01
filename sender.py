@@ -1,6 +1,7 @@
 import sys
 import telegram
 import asyncio
+import sqlite3
 
 
 async def send_remind(chat_id, name, remind):
@@ -8,6 +9,12 @@ async def send_remind(chat_id, name, remind):
 
     async with bot:
         await bot.initialize()
-        await bot.send_message(chat_id=chat_id, text=f'{name}:\n{remind}')
+        await bot.send_message(chat_id=chat_id, text=f"{' '.join(name.split('/'))}:\n{' '.join(remind.split('/'))}")
+        
+        con = sqlite3.connect("tg_bot.db")
+        cur = con.cursor()
+        result = cur.execute(f"DELETE FROM mes WHERE name = '{name}'").fetchall()
+        con.commit()
+        con.close()
 
 asyncio.run(send_remind(sys.argv[1], sys.argv[2], sys.argv[3]))

@@ -2,8 +2,8 @@ import logging
 from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
 import sqlite3
 import datetime as dt
-from threading import Timer
 import subprocess
+from telegram import ReplyKeyboardMarkup
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
@@ -11,11 +11,19 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+reply_keyboard = [['/help', '/set'],
+                  ['/give_all', '/delete_all']]
+markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+
 async def text(update, context):
     await context.bot.send_message(chat_id=update.effective_chat.id, text='Некорректно введена команда')
 
-async def help(update, context):
+async def start(update, context):
     text = 'Для добавления напоминания введите /set'
+    await update.message.reply_text(text, reply_markup=markup)
+
+async def help(update, context):
+    text ='/start - команда для начала работы с ботом\n/set - сохраняет напоминание \n/give <name> - прочитать напоминание \n/give_all - прочитать все напоминания \n/delete <name> - удалить напоминание \n/delete_all - удалить все напоминания'
 
     await update.message.reply_text(text)
 
@@ -59,11 +67,11 @@ async def end(update, context):
 
         await update.message.reply_text("Напоминание добавлено. Всего доброго!")
 
-        time = time.split('-')[1]   
-        name = context.user_data['name']
-        text = context.user_data['text']
+        time = time.split('-')  
+        name = '/'.join(context.user_data['name'].split())
+        text = '/'.join(context.user_data['text'].split())
         
-        command = f'echo /bin/python3 ./sender.py {update.effective_chat.id} {name} {text} | at {time}'
+        command = f'echo /bin/python3 ./sender.py {update.effective_chat.id} {name} {text} | at {time[1]} {time[0]}'
         subprocess.run(command, shell=True, executable='/bin/bash')
 
         return ConversationHandler.END
@@ -71,23 +79,6 @@ async def end(update, context):
     except ValueError:
         await update.message.reply_text("Некорректно введена дата. Попробуйте еще раз.")
         return 3
-
-    # day = int(time.split('-')[0].split('.')[0])
-    # month = int(time.split('-')[0].split('.')[1])
-    # year = int(time.split('-')[0].split('.')[1])
-    # hour = int(time.split('-')[1].split(':')[0])
-    # minute = int(time.split('-')[1].split(':')[1])
-
-    # time_now = dt.datetime.now()
-    # time_job = dt.datetime(year, month, day, hour, minute)
-    # delta = time_job - time_now
-
-    # mm, ss = divmod(delta.seconds, 60)
-    # hh, mm = divmod(mm, 60)
-    # s = "%02d:%02d" % (hh, mm)
-
-async def task(context):
-    await context.bot.send_message(context.job.chat_id, text='КУКУ!')
 
 async def all_reminders(update, context):
     con = sqlite3.connect("tg_bot.db")
@@ -99,20 +90,20 @@ async def all_reminders(update, context):
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def one_reminder(update, context):
-    name = ' '.join(context.args[0])
+    name = ' '.join(context.args[:])
     con = sqlite3.connect("tg_bot.db")
     cur = con.cursor()
     result = cur.execute(f"SELECT * FROM mes WHERE name = '{name}'").fetchall()
     con.close()
     for i in result:
         text = f'{i[0]}: {i[1]} - {i[2]}'
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def delete(update, context):
-    text = ' '.join(context.args[0])
+    text = ' '.join(context.args[:])
     con = sqlite3.connect("tg_bot.db")
     cur = con.cursor()
-    result = cur.execute(f"DELETE FROM mes WHERE name = '{text}'").fetchall()
+    cur.execute(f"DELETE FROM mes WHERE name = '{text}'").fetchall()
     con.commit()
     text = 'Напоминание удалено'
     await  update.message.reply_text(text)
@@ -134,21 +125,14 @@ def main():
     application = Application.builder().token('6619796610:AAHWGamh5RvpLS3vL8GYhoOTok5-S6R3udY').build()
 
     conv_handler = ConversationHandler(
-        # Точка входа в диалог.
-        # В данном случае — команда /start. Она задаёт первый вопрос.
-        entry_points=[CommandHandler('start', create_reminder)],
+        entry_points=[CommandHandler('set', create_reminder)],
 
-        # Состояние внутри диалога.
         states={
-            # Функция читает ответ на первый вопрос и задаёт второй.
             1: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_reminder_text)],
-            # Функция читает ответ на второй вопрос и задает третий.
             2: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_reminder_time)],
-            # Функция читает ответ на третий вопрос.
             3: [MessageHandler(filters.TEXT & ~filters.COMMAND, end)],
         },
 
-        # Точка прерывания диалога. В данном случае — команда /stop.
         fallbacks=[CommandHandler('stop', stop)]
     )
 
@@ -157,7 +141,9 @@ def main():
     text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, text)
     
     application.add_handler(text_handler)
-    application.add_handler(CommandHandler("set", set))
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("give_all", all_reminders))
     application.add_handler(CommandHandler("give", one_reminder))
     application.add_handler(CommandHandler("delete", delete))
