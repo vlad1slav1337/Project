@@ -163,6 +163,9 @@ def main():
 
     application.add_handler(conv_handler)
 
+    text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, echo)
+    
+    application.add_handler(text_handler)
     application.add_handler(CommandHandler("set", set))
     application.add_handler(CommandHandler("give_all", all_reminders))
     application.add_handler(CommandHandler("give", one_reminder))
