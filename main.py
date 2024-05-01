@@ -3,6 +3,7 @@ from telegram.ext import Application, CommandHandler, ConversationHandler, Messa
 import sqlite3
 import datetime as dt
 from threading import Timer
+import subprocess
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
@@ -17,7 +18,6 @@ def remove_job_if_exists(name, context):
     for job in current_jobs:
         job.schedule_removal()
     return True
-
 
 async def echo(update, context):
     await context.bot.send_message(chat_id=update.effective_chat.id, text='привет')
@@ -49,7 +49,7 @@ async def set_reminder_text(update, context):
 
 async def set_reminder_time(update, context):
     context.user_data['text'] = update.message.text
-    await update.message.reply_text(f"Когда вы хотите, чтобы я вам об этом напомнил? \nФормат ввода: дд.мм.гггг-чч:мм")
+    await update.message.reply_text(f"Когда вы хотите, чтобы я вам об этом напомнил?\nФормат ввода: дд.мм.гггг-чч:мм")
     return 3
 
 async def end(update, context):
@@ -66,6 +66,14 @@ async def end(update, context):
         con.close()
 
         await update.message.reply_text("Напоминание добавлено. Всего доброго!")
+
+        time = time.split('-')[1]   
+        name = context.user_data['name']
+        text = context.user_data['text']
+        
+        command = f'echo /bin/python3 ./sender.py {update.effective_chat.id} {name} {text} | at {time}'
+        subprocess.run(command, shell=True, executable='/bin/bash')
+
         return ConversationHandler.END
     
     except ValueError:
@@ -132,6 +140,7 @@ async def stop(update, context):
 
 def main():
     application = Application.builder().token('6619796610:AAHWGamh5RvpLS3vL8GYhoOTok5-S6R3udY').build()
+
     conv_handler = ConversationHandler(
         # Точка входа в диалог.
         # В данном случае — команда /start. Она задаёт первый вопрос.
