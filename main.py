@@ -11,16 +11,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-def remove_job_if_exists(name, context):
-    current_jobs = context.job_queue.get_jobs_by_name(name)
-    if not current_jobs:
-        return False
-    for job in current_jobs:
-        job.schedule_removal()
-    return True
-
-async def echo(update, context):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text='привет')
+async def text(update, context):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text='Некорректно введена команда')
 
 async def help(update, context):
     text = 'Для добавления напоминания введите /set'
@@ -148,7 +140,6 @@ def main():
 
         # Состояние внутри диалога.
         states={
-            0: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_reminder)],
             # Функция читает ответ на первый вопрос и задаёт второй.
             1: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_reminder_text)],
             # Функция читает ответ на второй вопрос и задает третий.
@@ -163,7 +154,7 @@ def main():
 
     application.add_handler(conv_handler)
 
-    text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, echo)
+    text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, text)
     
     application.add_handler(text_handler)
     application.add_handler(CommandHandler("set", set))
